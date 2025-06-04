@@ -128,3 +128,69 @@ jobs:
         with:
           name: release-aab
           path: android/app/build/outputs/bundle/release/*.aab
+          
+      - name: Get Current Date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d-%H-%M')" >> $GITHUB_OUTPUT
+        
+      - name: Create Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.date.outputs.date }}
+          release_name: Android Build v${{ steps.date.outputs.date }}
+          body: |
+            🚀 **Automated Android Build**
+            
+            **Build Info:**
+            - Branch: ${{ github.ref_name }}
+            - Commit: ${{ github.sha }}
+            - Workflow: ${{ github.workflow }}
+            - Trigger: ${{ github.event_name }}
+            
+            **Downloads:**
+            - **app-debug.apk** - Debug version for testing
+            - **app-release.apk** - Release version (unsigned)
+            - **app-release.aab** - Release bundle for Google Play Store
+            
+            **Installation:**
+            - For testing: Download and install the debug APK
+            - For production: Use the AAB file for Play Store upload
+          draft: false
+          prerelease: false
+          
+      - name: Upload Debug APK to Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: android/app/build/outputs/apk/debug/app-debug.apk
+          asset_name: app-debug.apk
+          asset_content_type: application/vnd.android.package-archive
+          
+      - name: Upload Release APK to Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          asset_name: app-release.apk
+          asset_content_type: application/vnd.android.package-archive
+          
+      - name: Upload Release AAB to Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: android/app/build/outputs/bundle/release/app-release.aab
+          asset_name: app-release.aab
+          asset_content_type: application/octet-stream
