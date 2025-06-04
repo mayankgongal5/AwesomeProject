@@ -9,29 +9,24 @@ on:
 
 jobs:
   build:
-    name: Build Android App
+    name: Build Android APK & AAB
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          gradle-home-cache-cleanup: true
+          node-version: '18'
+          cache: 'npm'
           
       - name: Create .env file
         run: |
@@ -79,64 +74,56 @@ jobs:
           }
           EOF
           
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+            
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
         
       - name: Make Gradlew Executable
         run: chmod +x ./android/gradlew
         
-      - name: Clean Build
+      - name: Clean Project
         run: |
           cd android
-          ./gradlew clean
+          ./gradlew clean --warning-mode all
           
       - name: Build Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --warning-mode all --no-daemon
           
       - name: Build Release APK
-        if: github.event_name != 'pull_request'
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease --warning-mode all --no-daemon
           
-      - name: Build Release Bundle (AAB)
-        if: github.event_name != 'pull_request'
+      - name: Build Release AAB
         run: |
           cd android
-          ./gradlew bundleRelease --no-daemon --stacktrace
+          ./gradlew bundleRelease --warning-mode all --no-daemon
           
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          name: debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
           
       - name: Upload Release APK
-        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-${{ github.sha }}
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
-          retention-days: 90
+          name: release-apk
+          path: android/app/build/outputs/apk/release/*.apk
           
-      - name: Upload Release Bundle
-        if: github.event_name != 'pull_request'
+      - name: Upload Release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-bundle-${{ github.sha }}
-          path: android/app/build/outputs/bundle/release/app-release.aab
-          retention-days: 90
-          
-      - name: Generate Build Summary
-        if: always()
-        run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Workflow**: ${{ github.workflow }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Node Version**: 18" >> $GITHUB_STEP_SUMMARY
-          echo "- **Java Version**: 17" >> $GITHUB_STEP_SUMMARY
+          name: release-aab
+          path: android/app/build/outputs/bundle/release/*.aab
