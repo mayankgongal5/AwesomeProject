@@ -1,3 +1,4 @@
+node_modules
 # OSX
 #
 .DS_Store
@@ -74,7 +75,6 @@ yarn-error.log
 !.yarn/sdks
 !.yarn/versions
 
-
-
+# Sensitive files - ensure these are properly ignored
 .env
-android/app/google-services.json
+/android/app/google-services.json
